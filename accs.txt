@@ -1,0 +1,20 @@
+Name			Student ID	Password
+Miguel Santos		, 24175832,	Plmun@123
+Angela Mae Reyes	, 24179316,	Plmun@123
+Joshua Daniel Cruz	, 24174609,	Plmun@123
+Sofia Isabelle Garcia	, 24178245,	Plmun@123
+Whimsy Rose Zamora	, 24172026,	Plmun@123
+
+Professor accounts
+Name			Professor ID	Password
+
+Roberto Miguel Dela Cruz, TCH-8821,	Plmun@123
+Maria Cristina Mendoza	, TCH-7354,	Plmun@123
+Daniel Patrick Ramos	, TCH-6193,	Plmun@123
+Elizabeth Anne Flores	, TCH-9042,	Plmun@123
+
+
+Admin Accounts
+ADMIN-001	Admin@123
+ADMIN-002	Staff@123
+
