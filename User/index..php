@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>PLMun - Classroom Booking & Search System</title>
+    <title>PLMun Room Management System</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -75,7 +75,8 @@
     <div class="max-w-[1600px] mx-auto min-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-8">
 
         <!-- FLOATING PLMUN GLASS NAVBAR -->
-        <header
+        <!-- Initially hidden until a user logs in -->
+        <header id="site-header" hidden
             class="glass-nav rounded-full px-6 py-3 flex items-center justify-between sticky top-4 z-40 transition-all duration-300 shadow-sm">
 
             <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('home-view')">
@@ -91,7 +92,7 @@
                     </span>
 
                     <span class="text-[9px] font-semibold text-zinc-500 tracking-wider">
-                        CLASSROOM SEARCH
+                        ROOM MANAGEMENT
                     </span>
                 </div>
             </div>
@@ -135,7 +136,7 @@
             <!-- ========================================================= -->
 
             <section id="login-view"
-                class="view-panel flex flex-col items-center justify-center min-h-[75vh] animate-fade-in-up">
+                class="view-panel flex flex-col items-center justify-center min-h-[75vh] animate-fade-in-up login-view-intro">
 
                 <div
                     class="glass-card-light rounded-[2.5rem] p-8 sm:p-12 w-full max-w-md relative overflow-hidden shadow-xl border border-emerald-900/10">
@@ -185,7 +186,7 @@
                         <button type="submit"
                             class="w-full group bg-plmun-green hover:bg-plmun-lightgreen transition-all duration-300 rounded-full pl-6 pr-2 py-2 flex items-center justify-between text-white font-medium shadow-md">
                             <span class="font-semibold text-sm">
-                                Proceed to Platform
+                                Login
                             </span>
 
                             <span
@@ -268,9 +269,7 @@
                             class="text-3xl sm:text-5xl lg:text-6xl font-medium tracking-tight leading-none text-white/95">
                         </h3>
 
-                        <p class="text-emerald-100/80 text-sm sm:text-base mt-4 max-w-xl font-light">
-                            Where Values Matter. Seamless real-time classroom search and schedule index.
-                        </p>
+
 
                         <div class="mt-5 flex flex-wrap items-center gap-3 text-emerald-100">
                             <div
@@ -304,7 +303,7 @@
                             <div class="relative group">
 
                                 <input type="text" id="main-search-input" onkeyup="handleSearchTrigger()"
-                                    placeholder="Search schedule (e.g. 3:00 pm - 5:00 pm or Room 4)..."
+                                    placeholder="Search Room eg. 100, 101 ..."
                                     class="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-full pl-14 pr-32 py-4 text-sm text-white placeholder:text-emerald-100/50 focus:outline-none focus:border-white focus:bg-white/20 shadow-2xl transition-all">
 
                                 <i
@@ -403,8 +402,6 @@
 
 
 
-
-
             </section>
 
 
@@ -445,8 +442,6 @@
             <!-- VIEW 4: ACCOUNT SCREEN -->
             <!-- ========================================================= -->
 
-
-            <!-- VIEW 4: ACCOUNT SCREEN -->
             <section id="account-view" class="view-panel hidden flex-col animate-fade-in-up">
 
                 <div class="account-page">
@@ -533,12 +528,12 @@
                 </div>
             </section>
 
-
         </main>
 
 
         <!-- FOOTER -->
-        <footer
+        <!-- Initially hidden until a user logs in -->
+        <footer id="site-footer" hidden
             class="mt-auto pt-6 border-t border-zinc-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
 
             <div class="flex items-center gap-3">
@@ -601,82 +596,7 @@
             </section>
 
             <div id="booking-details" class="hidden space-y-5">
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <p class="text-[10px] font-bold tracking-[0.16em] uppercase text-emerald-700">Available window
-                        selected</p>
-                    <p id="booking-selected-window" class="mt-1 text-base font-extrabold text-emerald-900">—</p>
-                    <p class="mt-1 text-xs leading-relaxed text-emerald-800">You can book part of this time. Any unused
-                        portion will remain available to other users.</p>
-                </div>
-
-                <section>
-                    <div class="flex items-center gap-2 mb-3">
-                        <span
-                            class="w-6 h-6 rounded-full bg-plmun-green text-white text-xs font-bold grid place-items-center">2</span>
-                        <div>
-                            <p class="text-sm font-bold text-zinc-800">Set your booking duration</p>
-                            <p class="text-xs text-zinc-500">Choose from 30 minutes up to 4 hours.</p>
-                        </div>
-                    </div>
-                    <label for="booking-hours" class="sr-only">Booking duration</label>
-                    <select id="booking-hours" onchange="applyHours()"
-                        class="w-full appearance-none border border-zinc-200 bg-white rounded-xl px-4 py-3.5 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-plmun-green">
-                        <option value="">Choose a duration</option>
-                    </select>
-                </section>
-
-                <section>
-                    <div class="flex items-center gap-2 mb-3">
-                        <span
-                            class="w-6 h-6 rounded-full bg-plmun-green text-white text-xs font-bold grid place-items-center">3</span>
-                        <div>
-                            <p class="text-sm font-bold text-zinc-800">Review your booking time</p>
-                            <p class="text-xs text-zinc-500">Time Out is calculated automatically. You can edit either
-                                time.</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div
-                            class="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 focus-within:border-plmun-green focus-within:ring-2 focus-within:ring-emerald-100">
-                            <label for="booking-time-in"
-                                class="block text-[10px] font-bold tracking-[0.14em] uppercase text-zinc-500 mb-2">Time
-                                In · Start</label>
-                            <input type="time" id="booking-time-in" step="60" oninput="handleTimeInChange()"
-                                class="w-full min-w-0 bg-transparent text-xl font-extrabold text-zinc-900 outline-none">
-                            <p class="mt-1.5 text-[11px] text-zinc-500">When you need the room.</p>
-                        </div>
-
-                        <div
-                            class="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 focus-within:border-plmun-green focus-within:ring-2 focus-within:ring-emerald-100">
-                            <label for="booking-time-out"
-                                class="block text-[10px] font-bold tracking-[0.14em] uppercase text-zinc-500 mb-2">Time
-                                Out · End</label>
-                            <input type="time" id="booking-time-out" step="60" oninput="updatePreferred()"
-                                class="w-full min-w-0 bg-transparent text-xl font-extrabold text-zinc-900 outline-none">
-                            <p class="mt-1.5 text-[11px] text-zinc-500">Auto-filled; change if needed.</p>
-                        </div>
-                    </div>
-
-                    <button type="button" onclick="resetBookingTimes()"
-                        class="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-plmun-green hover:text-emerald-800 transition-colors">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        Use suggested time again
-                    </button>
-                </section>
-
-                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4" aria-live="polite">
-                    <div class="flex items-center gap-2 text-emerald-700">
-                        <i class="fa-solid fa-calendar-check"></i>
-                        <p class="text-[10px] font-bold tracking-[0.16em] uppercase">Booking summary</p>
-                    </div>
-                    <p id="booking-preferred" class="mt-2 text-lg sm:text-xl font-extrabold text-plmun-green">—</p>
-                    <p class="mt-1 text-xs text-emerald-800">Only this selected interval will be reserved.</p>
-                </div>
-
-                <p id="booking-error"
-                    class="hidden rounded-xl bg-red-50 border border-red-200 px-3 py-2.5 text-sm text-red-700"
-                    role="alert"></p>
+                <!-- Booking controls are generated by User/script.js -->
             </div>
 
             <button id="booking-submit" type="button" onclick="submitBooking()" disabled

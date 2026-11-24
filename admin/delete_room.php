@@ -55,7 +55,7 @@ try {
         $pdo->rollBack();
     }
 
-    error_log("WHIM delete room error: " . $e->getMessage());
+    error_log("PLMun Room Management System delete room error: " . $e->getMessage());
 
     respond(
         false,
@@ -63,3 +63,4 @@ try {
         500
     );
 }
+

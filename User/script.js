@@ -1,5 +1,5 @@
 /* =========================================
-   WHIM — User Dashboard
+   PLMUN ROOM MANAGEMENT SYSTEM — USER DASHBOARD
    Database-connected room directory
    ========================================= */
 
@@ -26,13 +26,16 @@ const BUILDINGS = {
    ========================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderAnimatedH3("PLMun Classroom Search & Spatial Finder");
+  renderAnimatedH3("PLMun Room Management System");
   renderHistory();
-  loadRooms();
   updatePhilippineClock();
   setInterval(updatePhilippineClock, 1000);
 
+  // Start with the logged-out layout.
+  // The login screen is the initial visible page.
   updateLoggedOutInterface();
+
+  // Check whether a valid PHP login session already exists.
   restoreLoginSession();
 });
 
@@ -75,6 +78,33 @@ function getElement(id) {
   return document.getElementById(id);
 }
 
+/* =========================================
+   AUTHENTICATION LAYOUT
+   ========================================= */
+
+function updateAuthLayout() {
+  const header = getElement("site-header");
+  const footer = getElement("site-footer");
+
+  const isAuthenticated = Boolean(state.currentUser);
+
+  // Hide the header while the login page is active.
+  if (header) {
+    header.hidden = !isAuthenticated;
+    header.style.display = isAuthenticated ? "" : "none";
+  }
+
+  // Also hide footer navigation while logged out.
+  if (footer) {
+    footer.hidden = !isAuthenticated;
+    footer.style.display = isAuthenticated ? "" : "none";
+  }
+}
+
+/* =========================================
+   HTML ESCAPING
+   ========================================= */
+
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (character) => {
     const entities = {
@@ -89,16 +119,22 @@ function escapeHTML(value) {
   });
 }
 
+/* =========================================
+   TIME FORMATTING
+   ========================================= */
+
 function formatTime(time) {
   if (!time) return "";
 
   const parts = time.split(":");
+
   if (parts.length < 2) return time;
 
   let hours = Number(parts[0]);
   const minutes = parts[1];
 
   const period = hours >= 12 ? "PM" : "AM";
+
   hours = hours % 12 || 12;
 
   return `${hours}:${minutes} ${period}`;
@@ -107,6 +143,10 @@ function formatTime(time) {
 function formatSchedule(schedule) {
   return `${formatTime(schedule.start_time)} - ${formatTime(schedule.end_time)}`;
 }
+
+/* =========================================
+   ACTIVITY HISTORY
+   ========================================= */
 
 function addHistory(action) {
   const now = new Date();
@@ -176,6 +216,11 @@ function navigateTo(viewId) {
     viewId = "login-view";
   }
 
+  // Do not allow navigation to the login page while authenticated.
+  if (state.currentUser && viewId === "login-view") {
+    viewId = "home-view";
+  }
+
   document.querySelectorAll(".view-panel").forEach((panel) => {
     panel.classList.add("hidden");
     panel.classList.remove("flex");
@@ -188,10 +233,21 @@ function navigateTo(viewId) {
   target.classList.remove("hidden");
   target.classList.add("flex");
 
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
+  // Replay the login entrance whenever the user is sent back to sign-in.
+  if (viewId === "login-view") {
+    target.classList.remove("login-view-intro");
+    void target.offsetWidth;
+    target.classList.add("login-view-intro");
+  }
+
+  // Keep header and footer visibility synchronized with login state.
+  updateAuthLayout();
+
+  // Switch views at the top immediately. Smooth scrolling can leave a blank
+  // part of the previous long page visible while the browser is still moving.
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 /* =========================================
@@ -199,6 +255,11 @@ function navigateTo(viewId) {
    ========================================= */
 
 async function selectBuilding(buildingName) {
+  if (!state.currentUser) {
+    navigateTo("login-view");
+    return;
+  }
+
   if (!BUILDINGS[buildingName]) return;
 
   state.activeBuilding = buildingName;
@@ -248,12 +309,19 @@ async function loadRooms() {
 
   if (!roomContainer) return;
 
+  if (!state.currentUser) {
+    roomContainer.innerHTML = "";
+    return;
+  }
+
   state.loading = true;
 
   showMessage(roomContainer, "Loading rooms...");
 
   try {
-    const response = await fetch(`${API_BASE}get_rooms.php`);
+    const response = await fetch(`${API_BASE}get_rooms.php`, {
+      cache: "no-store",
+    });
 
     if (!response.ok) {
       throw new Error("Unable to connect to the room API.");
@@ -277,6 +345,7 @@ async function loadRooms() {
         try {
           const scheduleResponse = await fetch(
             `${API_BASE}get_room_schedule.php?room_id=${encodeURIComponent(room.id)}`,
+            { cache: "no-store" },
           );
 
           if (!scheduleResponse.ok) {
@@ -304,31 +373,23 @@ async function loadRooms() {
       }),
     );
 
-    // Load today's bookings so booked intervals can be removed.
-    try {
-      const bookingResponse = await fetch("get_bookings.php", {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
+    // Load today's bookings so booked times can be removed.
+    const bookingResponse = await fetch("get_bookings.php", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
 
-      if (!bookingResponse.ok) {
-        throw new Error("Unable to load today's bookings.");
-      }
-
-      const bookingData = await bookingResponse.json();
-
-      if (!bookingData.success || !Array.isArray(bookingData.bookings)) {
-        throw new Error(bookingData.message || "Unable to load bookings.");
-      }
-
-      state.bookings = bookingData.bookings;
-    } catch (error) {
-      console.error("Bookings error:", error);
-
-      // Do not show rooms as available when booking information failed.
-      throw error;
+    if (!bookingResponse.ok) {
+      throw new Error("Unable to load today's bookings.");
     }
 
+    const bookingData = await bookingResponse.json();
+
+    if (!bookingData.success || !Array.isArray(bookingData.bookings)) {
+      throw new Error(bookingData.message || "Unable to load bookings.");
+    }
+
+    state.bookings = bookingData.bookings;
     state.rooms = roomsWithSchedules;
 
     renderRooms();
@@ -399,38 +460,86 @@ function minutesToInput(minutes) {
 function getTodayAvailableSchedules(room) {
   const now = getPhilippineTimeParts();
 
-  // User/get_bookings.php returns bookings for today's date only.
-  const roomBookings = (state.bookings || [])
-    .filter((item) => Number(item.room_id) === Number(room.id))
-    .map((item) => ({
-      start: timeToMinutes(item.start_time),
-      end: timeToMinutes(item.end_time),
-    }));
+  const roomBookings = (state.bookings || []).filter(
+    (item) => Number(item.room_id) === Number(room.id),
+  );
 
-  return (room.schedules || [])
-    .filter((schedule) => {
-      const sameDay =
-        String(schedule.day_of_week).toLowerCase() === now.day.toLowerCase();
+  // Round up to the next 30-minute boundary.
+  const earliestStart = Math.ceil((now.minutes + 1) / 30) * 30;
 
-      const isAvailable =
-        String(schedule.status || "")
-          .trim()
-          .toLowerCase() === "available";
+  const availableRanges = [];
 
-      const slotStart = timeToMinutes(schedule.start_time);
-      const slotEnd = timeToMinutes(schedule.end_time);
+  (room.schedules || []).forEach((schedule) => {
+    const sameDay =
+      String(schedule.day_of_week).toLowerCase() === now.day.toLowerCase();
 
-      const hasNotEnded = slotEnd > now.minutes;
+    const isAvailable =
+      String(schedule.status || "")
+        .trim()
+        .toLowerCase() === "available";
 
-      // If anyone booked ANY part of this time, the whole time is removed
-      // from the room card. No smaller leftover time is shown.
-      const isBooked = roomBookings.some(
-        (booked) => booked.start < slotEnd && booked.end > slotStart,
-      );
+    if (!sameDay || !isAvailable) return;
 
-      return sameDay && isAvailable && hasNotEnded && !isBooked;
-    })
-    .sort((a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time));
+    const slotStart = timeToMinutes(schedule.start_time);
+    const slotEnd = timeToMinutes(schedule.end_time);
+
+    if (slotEnd <= earliestStart) return;
+
+    let freeRanges = [
+      {
+        start: slotStart,
+        end: slotEnd,
+      },
+    ];
+
+    // Remove every booking interval from the available schedule.
+    roomBookings.forEach((bookingItem) => {
+      const bookedStart = timeToMinutes(bookingItem.start_time);
+      const bookedEnd = timeToMinutes(bookingItem.end_time);
+
+      freeRanges = freeRanges.flatMap((range) => {
+        if (bookedEnd <= range.start || bookedStart >= range.end) {
+          return [range];
+        }
+
+        const remaining = [];
+
+        if (bookedStart > range.start) {
+          remaining.push({
+            start: range.start,
+            end: Math.min(bookedStart, range.end),
+          });
+        }
+
+        if (bookedEnd < range.end) {
+          remaining.push({
+            start: Math.max(bookedEnd, range.start),
+            end: range.end,
+          });
+        }
+
+        return remaining.filter((part) => part.end > part.start);
+      });
+    });
+
+    freeRanges.forEach((range) => {
+      const start = Math.max(range.start, earliestStart);
+      const end = range.end;
+
+      if (end - start >= 30) {
+        availableRanges.push({
+          ...schedule,
+          start_time: minutesToInput(start),
+          end_time: minutesToInput(end),
+          status: "available",
+        });
+      }
+    });
+  });
+
+  return availableRanges.sort(
+    (a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time),
+  );
 }
 
 function getRoomStatus(room) {
@@ -488,22 +597,28 @@ async function restoreLoginSession() {
 
     if (data.success && data.user) {
       state.currentUser = data.user;
+
       updateLoggedInInterface(data.user);
 
-      // Already logged in: go to the home page.
+      // A valid existing session opens the main room interface.
       navigateTo("home-view");
+
+      // Load room data only after the user is authenticated.
+      await loadRooms();
     } else {
       state.currentUser = null;
+
       updateLoggedOutInterface();
 
-      // Not logged in: stay on the login page.
       navigateTo("login-view");
     }
   } catch (error) {
     console.error("Session restoration error:", error);
 
     state.currentUser = null;
+
     updateLoggedOutInterface();
+
     navigateTo("login-view");
   }
 }
@@ -514,6 +629,9 @@ async function restoreLoginSession() {
 
 function updateLoggedInInterface(user) {
   if (!user) return;
+
+  // Show header and footer after successful login.
+  updateAuthLayout();
 
   const navAuthButton = getElement("nav-auth-btn");
   const accountId = getElement("account-user-id");
@@ -599,6 +717,9 @@ function updateLoggedInInterface(user) {
 }
 
 function updateLoggedOutInterface() {
+  // Hide header and footer while logged out.
+  updateAuthLayout();
+
   const navAuthButton = getElement("nav-auth-btn");
   const accountId = getElement("account-user-id");
   const accountRole = getElement("account-user-role");
@@ -659,7 +780,6 @@ function renderRooms() {
     return;
   }
 
-  // Only rooms with an available time today are shown.
   const visibleRooms = state.rooms.filter(
     (room) => getRoomStatus(room).available,
   );
@@ -676,7 +796,6 @@ function renderRooms() {
     const roomNumber = escapeHTML(room.room_number);
     const buildingName = escapeHTML(room.building_name);
 
-    // Only available (not booked) admin times are listed.
     const scheduleHTML = roomStatus.schedules
       .map(
         (schedule) => `
@@ -762,6 +881,11 @@ function showRoomSchedule(roomId) {
    ========================================= */
 
 function handleSearchTrigger() {
+  if (!state.currentUser) {
+    navigateTo("login-view");
+    return;
+  }
+
   const input = getElement("main-search-input");
 
   if (!input) return;
@@ -780,6 +904,11 @@ function handleSearchTrigger() {
    ========================================= */
 
 function executeSearch() {
+  if (!state.currentUser) {
+    navigateTo("login-view");
+    return;
+  }
+
   const wrapper = getElement("search-results-wrapper");
   const container = getElement("search-results-container");
   const input = getElement("main-search-input");
@@ -813,7 +942,6 @@ function executeSearch() {
       .join(" ")
       .toLowerCase();
 
-    // Numeric searches match room numbers only.
     if (/^\d+$/.test(query)) {
       return roomNumber.includes(query);
     }
@@ -1005,7 +1133,11 @@ async function handleLogin(event) {
 
     getElement("password").value = "";
 
+    // Move into the main interface after a successful login.
     navigateTo("home-view");
+
+    // Load the room directory only after authentication.
+    await loadRooms();
   } catch (error) {
     console.error("Login error:", error);
 
@@ -1032,13 +1164,28 @@ async function handleLogout() {
       throw new Error(data.message || "Logout request failed.");
     }
 
+    // Clear the current user's application state.
     state.currentUser = null;
+    state.bookings = [];
+    state.rooms = [];
+    state.searchQuery = "";
 
+    // Hide navigation and restore the logged-out interface.
     updateLoggedOutInterface();
 
-    alert("You have been logged out.");
+    // Clear login fields for the next user.
+    const userIdInput = getElement("user-id");
+    const passwordInput = getElement("password");
 
+    if (userIdInput) userIdInput.value = "";
+    if (passwordInput) passwordInput.value = "";
+
+    clearLoginErrors();
+
+    // Return to the login page.
     navigateTo("login-view");
+
+    alert("You have been logged out.");
   } catch (error) {
     console.error("Logout error:", error);
     alert("Unable to log out. Please try again.");
@@ -1095,21 +1242,44 @@ const booking = {
   slot: null,
 };
 
-function formatDuration(totalMinutes) {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
+const BOOKING_DURATIONS = [
+  { minutes: 30, label: "30 mins" },
+  { minutes: 60, label: "1 hr" },
+  { minutes: 90, label: "1 hr 30 mins" },
+  { minutes: 120, label: "2 hrs" },
+  { minutes: 150, label: "2 hrs 30 mins" },
+  { minutes: 180, label: "3 hrs" },
+  { minutes: 210, label: "3 hrs 30 mins" },
+  { minutes: 240, label: "4 hrs" },
+];
+
+/* =========================================
+   BOOKING DURATION FORMATTING
+   ========================================= */
+
+function formatBookingDuration(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
 
   const parts = [];
 
-  if (hours > 0) parts.push(`${hours} ${hours === 1 ? "hr" : "hrs"}`);
-  if (minutes > 0) parts.push(`${minutes} ${minutes === 1 ? "min" : "mins"}`);
+  if (hours > 0) {
+    parts.push(`${hours} hr${hours === 1 ? "" : "s"}`);
+  }
 
-  return parts.join(" ") || "0 mins";
+  if (remainder > 0) {
+    parts.push(`${remainder} min${remainder === 1 ? "" : "s"}`);
+  }
+
+  return parts.join(" ");
 }
+
+/* =========================================
+   OPEN BOOKING WINDOW
+   ========================================= */
 
 function bookRoom(roomId) {
   if (!state.currentUser) {
-    alert("Please log in first before booking a room.");
     navigateTo("login-view");
     return;
   }
@@ -1124,7 +1294,7 @@ function bookRoom(roomId) {
   const availableSchedules = getTodayAvailableSchedules(room);
 
   if (availableSchedules.length === 0) {
-    alert("This room has no available time today.");
+    alert("This room has no available time remaining today.");
     return;
   }
 
@@ -1139,7 +1309,6 @@ function openBookingModal(room, schedules) {
   getElement("booking-title").textContent =
     `Room ${room.room_number} — ${room.building_name}`;
 
-  // 1. Available times (radio buttons)
   getElement("booking-slots").innerHTML = schedules
     .map(
       (schedule, index) => `
@@ -1159,6 +1328,8 @@ function openBookingModal(room, schedules) {
               Available time
             </span>
           </span>
+
+          <i class="fa-solid fa-chevron-right text-xs text-zinc-400"></i>
         </label>
       `,
     )
@@ -1182,7 +1353,7 @@ function openBookingModal(room, schedules) {
         </p>
 
         <p class="mt-1 text-xs text-emerald-800">
-          After booking, this whole available time is marked as booked.
+          Only the time you choose will be booked. Any unused time stays available.
         </p>
       </div>
 
@@ -1195,37 +1366,50 @@ function openBookingModal(room, schedules) {
         <select id="booking-hours"
           onchange="applyHours()"
           class="w-full border border-zinc-200 bg-white rounded-xl px-4 py-3 text-sm font-semibold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-plmun-green">
+          <option value="">Choose duration</option>
         </select>
 
         <p class="mt-1.5 text-xs text-zinc-500">
-          Pick a duration, then change Time In and Time Out if you want an exact time.
+          Choose from 30 minutes up to 4 hours, depending on the available time.
         </p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
         <div class="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 focus-within:border-plmun-green focus-within:ring-2 focus-within:ring-emerald-100">
+
           <label for="booking-time-in"
             class="block text-[10px] font-bold tracking-[0.14em] uppercase text-zinc-500 mb-2">
-            Time In
+            Time In · Start
           </label>
 
           <input type="time"
             id="booking-time-in"
-            oninput="handleTimeChange()"
+            step="1800"
+            oninput="handleTimeInChange()"
             class="w-full min-w-0 bg-transparent text-xl font-extrabold text-zinc-900 outline-none">
+
+          <p class="mt-1.5 text-[11px] text-zinc-500">
+            When you need the room.
+          </p>
         </div>
 
         <div class="rounded-2xl border border-zinc-200 bg-zinc-50 p-3.5 focus-within:border-plmun-green focus-within:ring-2 focus-within:ring-emerald-100">
+
           <label for="booking-time-out"
             class="block text-[10px] font-bold tracking-[0.14em] uppercase text-zinc-500 mb-2">
-            Time Out
+            Time Out · End
           </label>
 
           <input type="time"
             id="booking-time-out"
-            oninput="handleTimeChange()"
+            step="1800"
+            oninput="handleTimeOutChange()"
             class="w-full min-w-0 bg-transparent text-xl font-extrabold text-zinc-900 outline-none">
+
+          <p class="mt-1.5 text-[11px] text-zinc-500">
+            Calculated automatically; editable.
+          </p>
         </div>
 
       </div>
@@ -1233,16 +1417,19 @@ function openBookingModal(room, schedules) {
       <button type="button"
         onclick="resetBookingTimes()"
         class="inline-flex items-center gap-2 text-xs font-semibold text-plmun-green hover:text-emerald-800 transition-colors">
+
         <i class="fa-solid fa-rotate-left"></i>
         Use suggested time again
       </button>
 
       <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4"
         aria-live="polite">
+
         <div class="flex items-center gap-2 text-emerald-700">
           <i class="fa-solid fa-calendar-check"></i>
+
           <p class="text-[10px] font-bold tracking-[0.16em] uppercase">
-            Preferred time
+            Preferred booking time
           </p>
         </div>
 
@@ -1250,6 +1437,11 @@ function openBookingModal(room, schedules) {
           class="mt-2 text-lg sm:text-xl font-extrabold text-plmun-green">
           —
         </p>
+
+        <p class="mt-1 text-xs text-emerald-800">
+          Review this time before confirming your booking.
+        </p>
+
       </div>
 
       <p id="booking-error"
@@ -1261,7 +1453,7 @@ function openBookingModal(room, schedules) {
   `;
 
   getElement("booking-submit").disabled = true;
-  getElement("booking-submit").textContent = "Book";
+  getElement("booking-submit").textContent = "Confirm Booking";
 
   const modal = getElement("booking-modal");
 
@@ -1278,30 +1470,41 @@ function closeBookingModal() {
   booking.slot = null;
 }
 
-// Builds the "how long" dropdown: 30 mins, 1 hr, 1 hr 30 mins ...
-// up to the length of the selected available time.
-function setDurationOptions(slotLength, selectedMinutes) {
+/* =========================================
+   DURATION OPTIONS
+   ========================================= */
+
+function getAvailableDurations(maxMinutes) {
+  return BOOKING_DURATIONS.filter((item) => item.minutes <= maxMinutes);
+}
+
+function setDurationOptions(maxMinutes, selectedMinutes = 30) {
   const select = getElement("booking-hours");
 
-  let options = '<option value="">Custom time</option>';
+  const durations = getAvailableDurations(maxMinutes);
 
-  for (let minutes = 30; minutes <= slotLength; minutes += 30) {
-    options += `<option value="${minutes}">${formatDuration(minutes)}</option>`;
+  select.innerHTML =
+    '<option value="">Choose duration</option>' +
+    durations
+      .map(
+        (item) => `
+          <option value="${item.minutes}">
+            ${item.label}
+          </option>
+        `,
+      )
+      .join("");
+
+  if (durations.some((item) => item.minutes === selectedMinutes)) {
+    select.value = String(selectedMinutes);
   }
 
-  select.innerHTML = options;
-
-  const exists = Array.from(select.options).some(
-    (option) => option.value === String(selectedMinutes),
-  );
-
-  select.value = exists ? String(selectedMinutes) : "";
+  return durations;
 }
 
-// Suggested duration: 1 hour if it fits, otherwise the longest that fits.
-function getSuggestedMinutes(slotLength) {
-  return Math.min(60, Math.floor(slotLength / 30) * 30);
-}
+/* =========================================
+   SELECT AVAILABLE SCHEDULE
+   ========================================= */
 
 function selectSlot(index) {
   const slot = booking.slots[index];
@@ -1313,71 +1516,129 @@ function selectSlot(index) {
   const slotStart = timeToMinutes(slot.start_time);
   const slotEnd = timeToMinutes(slot.end_time);
 
-  getElement("booking-selected-window").textContent = formatSchedule(slot);
-
   const timeIn = getElement("booking-time-in");
   const timeOut = getElement("booking-time-out");
 
-  timeIn.min = timeOut.min = minutesToInput(slotStart);
-  timeIn.max = timeOut.max = minutesToInput(slotEnd);
+  const selectedWindow = getElement("booking-selected-window");
+
+  selectedWindow.textContent = formatSchedule(slot);
+
+  timeIn.min = minutesToInput(slotStart);
+  timeIn.max = minutesToInput(slotEnd - 30);
+  timeIn.value = minutesToInput(slotStart);
+
+  timeOut.min = minutesToInput(slotStart + 30);
+  timeOut.max = minutesToInput(slotEnd);
+  timeOut.value = "";
 
   getElement("booking-details").classList.remove("hidden");
 
-  setDurationOptions(
-    slotEnd - slotStart,
-    getSuggestedMinutes(slotEnd - slotStart),
-  );
+  const durations = setDurationOptions(slotEnd - slotStart, 30);
+
+  if (durations.length === 0) {
+    showBookingError("This available interval is shorter than 30 minutes.");
+
+    getElement("booking-submit").disabled = true;
+    return;
+  }
 
   applyHours();
 }
 
-// When the duration changes, Time In goes to the start of the
-// available time and Time Out is calculated.
+/* =========================================
+   APPLY SELECTED DURATION
+   ========================================= */
+
 function applyHours() {
   if (!booking.slot) return;
 
   const slotStart = timeToMinutes(booking.slot.start_time);
   const slotEnd = timeToMinutes(booking.slot.end_time);
 
-  const minutes = Number(getElement("booking-hours").value);
+  const timeIn = getElement("booking-time-in");
+  const timeOut = getElement("booking-time-out");
+  const durationSelect = getElement("booking-hours");
 
-  getElement("booking-time-in").value = minutesToInput(slotStart);
-  getElement("booking-time-out").value = minutesToInput(
-    minutes > 0 ? slotStart + minutes : slotEnd,
-  );
+  const requestedDuration = Number(durationSelect.value);
+
+  if (
+    !timeIn.value ||
+    !BOOKING_DURATIONS.some((item) => item.minutes === requestedDuration)
+  ) {
+    timeOut.value = "";
+    updatePreferred();
+    return;
+  }
+
+  const start = timeToMinutes(timeIn.value);
+  const remaining = slotEnd - start;
+
+  if (start < slotStart || start >= slotEnd) {
+    timeOut.value = "";
+    updatePreferred();
+    return;
+  }
+
+  const allowed = setDurationOptions(remaining, requestedDuration);
+
+  let selected = allowed.find((item) => item.minutes === requestedDuration);
+
+  if (!selected) {
+    const shorterOptions = allowed.filter(
+      (item) => item.minutes < requestedDuration,
+    );
+
+    selected = shorterOptions[shorterOptions.length - 1];
+  }
+
+  if (!selected) {
+    timeOut.value = "";
+    updatePreferred();
+    return;
+  }
+
+  durationSelect.value = String(selected.minutes);
+
+  timeOut.min = minutesToInput(start + 30);
+  timeOut.max = minutesToInput(slotEnd);
+
+  timeOut.value = minutesToInput(start + selected.minutes);
 
   updatePreferred();
 }
 
-// Time In and Time Out can be edited freely (any minute).
-function handleTimeChange() {
-  const timeIn = getElement("booking-time-in").value;
-  const timeOut = getElement("booking-time-out").value;
-  const select = getElement("booking-hours");
+function handleTimeInChange() {
+  applyHours();
+}
 
-  if (timeIn && timeOut) {
-    const duration = timeToMinutes(timeOut) - timeToMinutes(timeIn);
-
-    const listed = Array.from(select.options).some(
-      (option) => option.value === String(duration),
-    );
-
-    select.value = listed ? String(duration) : "";
-  }
-
+function handleTimeOutChange() {
   updatePreferred();
 }
 
 function resetBookingTimes() {
   if (!booking.slot) return;
 
-  const slotLength =
-    timeToMinutes(booking.slot.end_time) -
-    timeToMinutes(booking.slot.start_time);
+  const slotStart = timeToMinutes(booking.slot.start_time);
+  const slotEnd = timeToMinutes(booking.slot.end_time);
 
-  setDurationOptions(slotLength, getSuggestedMinutes(slotLength));
+  getElement("booking-time-in").value = minutesToInput(slotStart);
+
+  setDurationOptions(slotEnd - slotStart, 30);
 
   applyHours();
+}
+
+/* =========================================
+   BOOKING VALIDATION
+   ========================================= */
+
+function showBookingError(message) {
+  const error = getElement("booking-error");
+
+  if (!error) return;
+
+  error.textContent = message;
+  error.classList.remove("hidden");
 }
 
 function updatePreferred() {
@@ -1393,18 +1654,35 @@ function updatePreferred() {
   const timeInValue = getElement("booking-time-in").value;
   const timeOutValue = getElement("booking-time-out").value;
 
+  const durationSelect = getElement("booking-hours");
+
   let message = "";
 
   if (!timeInValue || !timeOutValue) {
-    message = "Please set both Time In and Time Out.";
+    message = "Choose a duration and valid Time In and Time Out.";
   } else {
     const start = timeToMinutes(timeInValue);
     const end = timeToMinutes(timeOutValue);
 
+    const duration = end - start;
+
+    const matchingDuration = BOOKING_DURATIONS.find(
+      (item) => item.minutes === duration,
+    );
+
+    const durationIsListed = Array.from(durationSelect.options).some(
+      (option) => Number(option.value) === duration,
+    );
+
     if (start < slotStart || end > slotEnd) {
-      message = `Please stay inside ${formatSchedule(booking.slot)}.`;
+      message = `Your booking must stay within ${formatSchedule(booking.slot)}.`;
     } else if (end <= start) {
       message = "Time Out must be later than Time In.";
+    } else if (!matchingDuration || !durationIsListed) {
+      message =
+        "Choose one of the listed durations in 30-minute increments, up to 4 hours.";
+    } else {
+      durationSelect.value = String(duration);
     }
   }
 
@@ -1412,7 +1690,7 @@ function updatePreferred() {
     error.textContent = message;
     error.classList.remove("hidden");
 
-    preferred.textContent = "—";
+    preferred.textContent = "Please review your selected time";
 
     submit.disabled = true;
     return;
@@ -1421,16 +1699,29 @@ function updatePreferred() {
   error.classList.add("hidden");
   error.textContent = "";
 
-  const minutes = timeToMinutes(timeOutValue) - timeToMinutes(timeInValue);
+  const start = timeToMinutes(timeInValue);
+  const end = timeToMinutes(timeOutValue);
 
-  preferred.textContent =
-    `${formatTime(timeInValue)} – ${formatTime(timeOutValue)} ` +
-    `(${formatDuration(minutes)})`;
+  const durationLabel = BOOKING_DURATIONS.find(
+    (item) => item.minutes === end - start,
+  ).label;
+
+  preferred.textContent = `${formatTime(timeInValue)} – ${formatTime(timeOutValue)} (${durationLabel})`;
 
   submit.disabled = false;
 }
 
+/* =========================================
+   SUBMIT BOOKING
+   ========================================= */
+
 async function submitBooking() {
+  if (!state.currentUser) {
+    closeBookingModal();
+    navigateTo("login-view");
+    return;
+  }
+
   if (!booking.room || !booking.slot) return;
 
   updatePreferred();
@@ -1475,16 +1766,18 @@ async function submitBooking() {
 
     closeBookingModal();
 
-    // Reload so the booked time is removed from the room card.
+    // Reload room and booking information after saving.
     await loadRooms();
 
-    alert(`Booking saved!\n\n${summary}`);
+    alert(
+      `Booking saved!\n\n${summary}\n\nThe room directory has been updated with the remaining available time.`,
+    );
   } catch (error) {
     console.error("Booking error:", error);
 
     alert("Unable to connect. Please try again.");
   } finally {
-    submit.textContent = "Book";
+    submit.textContent = "Confirm Booking";
 
     if (booking.slot) {
       updatePreferred();
@@ -1492,6 +1785,12 @@ async function submitBooking() {
   }
 }
 
+/* =========================================
+   CLOSE BOOKING WINDOW WITH ESCAPE
+   ========================================= */
+
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") closeBookingModal();
+  if (event.key === "Escape") {
+    closeBookingModal();
+  }
 });

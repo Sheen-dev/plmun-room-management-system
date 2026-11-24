@@ -27,3 +27,4 @@ try {
         "message" => "Unable to load rooms."
     ]);
 }
+

@@ -14,3 +14,4 @@ if (isset($_SESSION["user"])) {
         "message" => "No active login session."
     ]);
 }
+

@@ -5,29 +5,249 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>WHIM | Room Management</title>
+    <title>PLMun Room Management System | Administration</title>
 
     <link rel="stylesheet" href="style.css">
+    <style>
+        [hidden] {
+            display: none !important;
+        }
+
+        .admin-login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 18px;
+            background: radial-gradient(circle at top right, #e9eafe, transparent 42%), var(--background);
+        }
+
+        .admin-login-card {
+            width: 100%;
+            max-width: 440px;
+            padding: 38px;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            box-shadow: 0 20px 55px rgba(30, 41, 59, .10);
+        }
+
+        .admin-login-brand {
+            display: grid;
+            place-items: center;
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 18px;
+            border-radius: 18px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 24px;
+        }
+
+        .admin-login-heading {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .admin-login-heading h1 {
+            margin: 7px 0;
+            color: #172033;
+            font-size: 28px;
+            letter-spacing: -.8px;
+        }
+
+        .admin-login-heading p:last-child {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .admin-login-form {
+            display: grid;
+            gap: 17px;
+        }
+
+        .admin-login-form label {
+            display: block;
+            margin-bottom: 7px;
+            color: #3e485a;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .admin-login-form input {
+            width: 100%;
+            min-height: 48px;
+            padding: 0 15px;
+            color: #172033;
+            background: #fff;
+            border: 1px solid #dce2ec;
+            border-radius: 11px;
+            outline: none;
+            transition: .2s ease;
+        }
+
+        .admin-login-form input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, .10);
+        }
+
+        .admin-login-submit {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 51px;
+            margin-top: 5px;
+            padding: 5px 7px 5px 19px;
+            color: #fff;
+            background: var(--primary);
+            border: 0;
+            border-radius: 12px;
+            font-weight: 750;
+            transition: .2s ease;
+        }
+
+        .admin-login-submit:hover {
+            background: var(--primary-hover);
+        }
+
+        .admin-login-submit:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .admin-login-arrow {
+            display: grid;
+            place-items: center;
+            width: 37px;
+            height: 37px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, .17);
+        }
+
+        .admin-login-error {
+            padding: 11px 13px;
+            color: #b42318;
+            background: #fff1f0;
+            border: 1px solid #f4cfcc;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .admin-login-footnote {
+            margin: 22px 0 0;
+            color: #8993a2;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .admin-header-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .admin-session-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .admin-logout-btn {
+            min-height: 43px;
+            padding: 0 16px;
+            color: #b42318;
+            background: #fff5f4;
+            border: 1px solid #f3d1cd;
+            border-radius: 9px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .admin-logout-btn:hover {
+            color: #fff;
+            background: #c83227;
+            border-color: #c83227;
+        }
+
+        .admin-table .email-cell {
+            min-width: 230px;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        @media (max-width: 650px) {
+            .admin-login-card {
+                padding: 28px 22px;
+            }
+
+            .admin-header-actions {
+                justify-content: flex-start;
+            }
+
+            .admin-session-label {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
+    <!-- ADMIN LOGIN: this is the first screen until a valid admin session is found. -->
+    <section id="admin-login-screen" class="admin-login-screen login-intro">
+        <div class="admin-login-card">
+            <div class="admin-login-brand" aria-hidden="true"><strong>A</strong></div>
+            <div class="admin-login-heading">
+                <p class="eyebrow">PLMUN ROOM MANAGEMENT SYSTEM</p>
+                <h1>Administrator Login</h1>
+                <p>Sign in to manage rooms, schedules, and user accounts.</p>
+            </div>
+
+            <form id="adminLoginForm" class="admin-login-form">
+                <div id="adminLoginError" class="admin-login-error" role="alert" aria-live="polite" hidden></div>
+                <div>
+                    <label for="adminLoginId">Administrator ID</label>
+                    <input type="text" id="adminLoginId" name="admin_id" autocomplete="username"
+                        placeholder="e.g. ADMIN-001" required>
+                </div>
+                <div>
+                    <label for="adminLoginPassword">Password</label>
+                    <input type="password" id="adminLoginPassword" name="password" autocomplete="current-password"
+                        placeholder="Enter your password" required>
+                </div>
+                <button class="admin-login-submit" id="adminLoginSubmit" type="submit">
+                    <span>Login</span>
+                    <span class="admin-login-arrow">&rarr;</span>
+                </button>
+            </form>
+            <p class="admin-login-footnote">Authorized administrators only.</p>
+        </div>
+    </section>
+
     <!-- ADMIN HEADER -->
-    <header class="admin-header">
+    <header class="admin-header" id="adminHeader" hidden>
         <div>
-            <p class="eyebrow">WHIM ADMINISTRATION</p>
+            <p class="eyebrow">PLMUN ROOM MANAGEMENT SYSTEM</p>
             <h1>Room Management</h1>
             <p>Manage rooms and their availability schedules.</p>
             <p id="todayDate"></p>
         </div>
 
-        <button class="add-room-btn" type="button"
-            onclick="document.getElementById('addRoomModal').style.display='flex'; document.getElementById('addRoomModal').classList.add('active');">
-            + Add Room
-        </button>
+        <div class="admin-header-actions">
+            <span class="admin-session-label" id="adminSessionLabel">Administrator</span>
+            <button class="admin-logout-btn" id="adminLogoutBtn" type="button">Log out</button>
+            <button class="add-room-btn" type="button"
+                onclick="document.getElementById('addRoomModal').style.display='flex'; document.getElementById('addRoomModal').classList.add('active');">
+                + Add Room
+            </button>
+        </div>
     </header>
 
-    <main class="admin-content">
+    <main class="admin-content" id="adminDashboard" hidden>
 
         <!-- MAIN ADMIN TABS -->
         <nav class="admin-main-tabs" aria-label="Admin sections">
@@ -38,21 +258,35 @@
 
         <section id="roomsView" class="admin-view">
 
-            <!-- ROOM STATISTICS -->
-            <section class="admin-stats">
-                <div class="stat-card">
-                    <span>Total Rooms</span>
-                    <strong id="totalRooms">0</strong>
-                </div>
+            <!-- ROOM OVERVIEW -->
+            <section class="admin-stats" aria-label="Overall room inventory">
+                <div class="stat-card stat-card-total">
+                    <div class="stat-card-content">
+                        <span class="stat-card-label">
+                            <span class="stat-indicator" aria-hidden="true"></span>
+                            ROOM INVENTORY
+                        </span>
+                        <div class="stat-total-row">
+                            <strong id="totalRooms">0</strong>
+                            <span>total rooms</span>
+                        </div>
+                        <p>Registered rooms across all campus buildings.</p>
+                    </div>
 
-                <div class="stat-card">
-                    <span>Available</span>
-                    <strong id="availableRooms">0</strong>
-                </div>
-
-                <div class="stat-card">
-                    <span>Unavailable</span>
-                    <strong id="unavailableRooms">0</strong>
+                    <div class="stat-building-breakdown" aria-label="Room count by building">
+                        <div class="stat-building-item">
+                            <span>Building A</span>
+                            <strong id="roomsBuildingA">0</strong>
+                        </div>
+                        <div class="stat-building-item">
+                            <span>Building B</span>
+                            <strong id="roomsBuildingB">0</strong>
+                        </div>
+                        <div class="stat-building-item">
+                            <span>Building C</span>
+                            <strong id="roomsBuildingC">0</strong>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -132,6 +366,7 @@
                                 <th>Name</th>
                                 <th>Student ID</th>
                                 <th>Course</th>
+                                <th>Email</th>
                                 <th>Role</th>
                                 <th>Action</th>
                             </tr>
@@ -139,7 +374,7 @@
 
                         <tbody id="studentsTableBody">
                             <tr>
-                                <td colspan="6" class="table-empty">Loading students...</td>
+                                <td colspan="7" class="table-empty">Loading students...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -162,6 +397,7 @@
                                 <th>Name</th>
                                 <th>Professor ID</th>
                                 <th>Department</th>
+                                <th>Email</th>
                                 <th>Role</th>
                                 <th>Action</th>
                             </tr>
@@ -169,7 +405,7 @@
 
                         <tbody id="professorsTableBody">
                             <tr>
-                                <td colspan="6" class="table-empty">Loading professors...</td>
+                                <td colspan="7" class="table-empty">Loading professors...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -267,6 +503,41 @@
                     required>
 
                 <button type="submit" class="save-btn" id="saveNewUserBtn">Add User</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- CHANGE USER PASSWORD MODAL -->
+    <div id="changePasswordModal" class="modal" aria-hidden="true">
+        <div class="modal-content small-modal password-modal-content" role="dialog" aria-modal="true"
+            aria-labelledby="changePasswordTitle">
+            <button class="close-btn" type="button" aria-label="Close dialog"
+                onclick="closeModal('changePasswordModal')">&times;</button>
+
+            <p class="modal-label">USER SECURITY</p>
+            <h2 id="changePasswordTitle">Change User Password</h2>
+            <p class="password-target" id="changePasswordTarget">
+                Set a new password for this account.
+            </p>
+
+            <form id="changeUserPasswordForm" class="user-form">
+                <input type="hidden" id="changePasswordUserRole" name="user_role">
+                <input type="hidden" id="changePasswordUserId" name="user_id">
+
+                <label for="changeUserPassword">New Password</label>
+                <input type="password" id="changeUserPassword" name="password" minlength="8" maxlength="72"
+                    autocomplete="new-password" placeholder="At least 8 characters" required>
+
+                <label for="confirmUserPassword">Confirm New Password</label>
+                <input type="password" id="confirmUserPassword" minlength="8" maxlength="72" autocomplete="new-password"
+                    placeholder="Enter the password again" required>
+
+                <p class="password-hint">Use at least 8 characters. The user will need this new password the next time
+                    they sign in.</p>
+
+                <button type="submit" class="save-btn" id="saveUserPasswordBtn">
+                    Update Password
+                </button>
             </form>
         </div>
     </div>
@@ -372,6 +643,7 @@
 
     <!-- LOAD JAVASCRIPT AFTER ALL HTML ELEMENTS -->
     <script src="script.js"></script>
+    <script src="auth.js"></script>
 
     <!-- CLEAR BOOKING HISTORY -->
     <script>

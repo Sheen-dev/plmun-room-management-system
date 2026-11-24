@@ -41,3 +41,4 @@ try {
     error_log("Delete user error: " . $error->getMessage());
     respond(false, "Unable to delete this user. Check whether the account is linked to other records.", 500);
 }
+

@@ -1,5 +1,5 @@
 /* =========================
-   WHIM ROOM MANAGEMENT
+   PLMUN ROOM MANAGEMENT SYSTEM
    script.js
 ========================= */
 
@@ -327,30 +327,23 @@ function searchRooms() {
 
 function updateRoomStats() {
   const totalElement = getElement("totalRooms");
-  const availableElement = getElement("availableRooms");
-  const unavailableElement = getElement("unavailableRooms");
 
-  const buildingRooms = rooms.filter(function (room) {
-    return room.building_code === currentBuilding;
-  });
-
-  const availableCount = buildingRooms.filter(function (room) {
-    return room.status !== "occupied" && room.status !== "unavailable";
-  }).length;
-
-  const unavailableCount = buildingRooms.length - availableCount;
-
+  // The main figure is the overall inventory, not only the selected building.
   if (totalElement) {
-    totalElement.textContent = buildingRooms.length;
+    totalElement.textContent = rooms.length;
   }
 
-  if (availableElement) {
-    availableElement.textContent = availableCount;
-  }
+  // A small breakdown gives administrators context without availability cards.
+  ["A", "B", "C"].forEach(function (buildingCode) {
+    const countElement = getElement(`roomsBuilding${buildingCode}`);
+    if (!countElement) return;
 
-  if (unavailableElement) {
-    unavailableElement.textContent = unavailableCount;
-  }
+    const count = rooms.filter(function (room) {
+      return room.building_code === buildingCode;
+    }).length;
+
+    countElement.textContent = count;
+  });
 }
 
 /* =========================
@@ -730,6 +723,85 @@ function updateAddUserLabels() {
   }
 }
 
+function openChangePasswordModal(role, userId, fullName) {
+  const form = getElement("changeUserPasswordForm");
+  const modal = getElement("changePasswordModal");
+  const roleInput = getElement("changePasswordUserRole");
+  const idInput = getElement("changePasswordUserId");
+  const target = getElement("changePasswordTarget");
+  const passwordInput = getElement("changeUserPassword");
+
+  if (!form || !modal || !roleInput || !idInput) return;
+
+  form.reset();
+  roleInput.value = String(role || "").toUpperCase();
+  idInput.value = String(userId || "");
+
+  if (target) {
+    target.textContent = `Account: ${fullName} (${userId})`;
+  }
+
+  modal.style.display = "flex";
+  modal.classList.add("active");
+
+  if (passwordInput) {
+    window.setTimeout(() => passwordInput.focus(), 50);
+  }
+}
+
+const changeUserPasswordForm = getElement("changeUserPasswordForm");
+if (changeUserPasswordForm) {
+  changeUserPasswordForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+
+    const passwordInput = getElement("changeUserPassword");
+    const confirmInput = getElement("confirmUserPassword");
+    const saveButton = getElement("saveUserPasswordBtn");
+    const password = passwordInput ? passwordInput.value : "";
+    const confirmation = confirmInput ? confirmInput.value : "";
+
+    if (password.length < 8 || new TextEncoder().encode(password).length > 72) {
+      alert("Use a password between 8 and 72 characters.");
+      return;
+    }
+
+    if (password !== confirmation) {
+      alert("The new password and confirmation do not match.");
+      if (confirmInput) confirmInput.focus();
+      return;
+    }
+
+    const formData = new FormData(changeUserPasswordForm);
+
+    try {
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = "Updating...";
+      }
+
+      const response = await fetch("change_user_password.php", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        body: formData,
+      });
+
+      const data = await readJSON(response);
+      closeModal("changePasswordModal");
+      changeUserPasswordForm.reset();
+      showToast(data.message || "User password updated successfully.");
+    } catch (error) {
+      console.error("Could not change user password:", error);
+      alert(error.message || "Unable to update the user password.");
+    } finally {
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = "Update Password";
+      }
+    }
+  });
+}
+
 async function deleteUserAccount(role, userId, fullName) {
   const roleLabel = role === "STUDENT" ? "student" : "professor";
   const confirmed = confirm(
@@ -785,16 +857,27 @@ if (refreshBookingsButton) {
 }
 
 document.addEventListener("click", function (event) {
-  const deleteButton = event.target.closest(
-    'button[data-action="delete-user"]',
-  );
-  if (!deleteButton) return;
+  const actionButton = event.target.closest("button[data-action]");
+  if (!actionButton) return;
 
-  deleteUserAccount(
-    deleteButton.dataset.userRole,
-    deleteButton.dataset.userId,
-    deleteButton.dataset.userName,
-  );
+  const action = actionButton.dataset.action;
+
+  if (action === "delete-user") {
+    deleteUserAccount(
+      actionButton.dataset.userRole,
+      actionButton.dataset.userId,
+      actionButton.dataset.userName,
+    );
+    return;
+  }
+
+  if (action === "change-password") {
+    openChangePasswordModal(
+      actionButton.dataset.userRole,
+      actionButton.dataset.userId,
+      actionButton.dataset.userName,
+    );
+  }
 });
 
 const addUserForm = getElement("addUserForm");
@@ -1480,6 +1563,8 @@ document.addEventListener("keydown", function (event) {
   if (event.key !== "Escape") return;
 
   closeModal("addRoomModal");
+  closeModal("addUserModal");
+  closeModal("changePasswordModal");
   closeModal("scheduleModal");
 });
 
@@ -1495,11 +1580,9 @@ document.addEventListener("DOMContentLoaded", function () {
   if (activeTab && activeTab.dataset.building) {
     currentBuilding = activeTab.dataset.building.toUpperCase();
   } else {
-    selectBuilding("A");
+    currentBuilding = "A";
   }
 
-  loadRooms();
-  loadAdminUsers();
-  loadAdminBookings();
+  // Protected dashboard data is loaded by auth.js only after the
+  // administrator session has been confirmed.
 });
-

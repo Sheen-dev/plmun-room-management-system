@@ -67,6 +67,8 @@ try {
 
     unset($user["password"]);
 
+    // Keep the User and Admin portals as separate login roles.
+    unset($_SESSION["admin"]);
     session_regenerate_id(true);
     $_SESSION["user"] = $user;
 

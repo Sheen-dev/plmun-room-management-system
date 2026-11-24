@@ -50,7 +50,7 @@ try {
     respond(true, "Room added successfully.");
 
 } catch (PDOException $e) {
-    error_log("WHIM add room error: " . $e->getMessage());
+    error_log("PLMun Room Management System add room error: " . $e->getMessage());
 
     $mysqlError = $e->errorInfo[1] ?? null;
 
@@ -65,7 +65,8 @@ try {
     respond(false, "Unable to add the room. Please try again.", 500);
 
 } catch (Throwable $e) {
-    error_log("WHIM add room error: " . $e->getMessage());
+    error_log("PLMun Room Management System add room error: " . $e->getMessage());
 
     respond(false, "An unexpected error occurred.", 500);
 }
+

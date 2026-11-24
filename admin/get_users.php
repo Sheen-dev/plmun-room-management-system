@@ -2,6 +2,7 @@
 require_once __DIR__ . "/db.php";
 
 header("Content-Type: application/json; charset=UTF-8");
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 
 try {
     $students = $pdo->query("
@@ -9,6 +10,7 @@ try {
             student_id AS user_id,
             full_name,
             course,
+            'Sample' AS email,
             age,
             year_level,
             role
@@ -21,6 +23,7 @@ try {
             professor_id AS user_id,
             full_name,
             department,
+            'Sample' AS email,
             age,
             designation,
             role
@@ -33,8 +36,10 @@ try {
         "students" => $students,
         "professors" => $professors
     ]);
+
 } catch (Throwable $error) {
     error_log("Load users error: " . $error->getMessage());
+
     http_response_code(500);
 
     echo json_encode([
